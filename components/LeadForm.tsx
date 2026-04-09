@@ -15,30 +15,43 @@ const COUNTRIES = [
 ];
 
 type FormState = 'idle' | 'loading' | 'success' | 'error';
+type ExecutionStatus = 'running' | 'success' | 'error' | 'waiting' | null;
 
 interface SubmitResult {
   status: string;
   message: string;
   sheets_url: string;
+  execution_id?: string;
+}
+
+interface StatusResult {
+  status: ExecutionStatus;
+  stoppedAt: string | null;
+  errorMessage: string | null;
 }
 
 export default function LeadForm() {
-  const [state, setState] = useState<FormState>('idle');
+  const [formState, setFormState] = useState<FormState>('idle');
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>(null);
+  const [executionError, setExecutionError] = useState('');
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   async function handleSubmit(e: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     e.preventDefault();
-    setState('loading');
+    setFormState('loading');
     setResult(null);
     setErrorMsg('');
+    setExecutionStatus(null);
+    setExecutionError('');
 
     const form = e.currentTarget;
     const data = {
       'Your Name': (form.elements.namedItem('yourName') as HTMLInputElement).value,
       'About your Product': (form.elements.namedItem('aboutProduct') as HTMLTextAreaElement).value,
       'Designation': (form.elements.namedItem('designation') as HTMLInputElement).value,
-      'Location': (form.elements.namedItem('location') as HTMLInputElement).value,
+      'Location': (form.elements.namedItem('location') as HTMLSelectElement).value,
       'Keywords': (form.elements.namedItem('keywords') as HTMLInputElement).value,
       'Product URL': (form.elements.namedItem('productUrl') as HTMLInputElement).value,
     };
@@ -50,12 +63,42 @@ export default function LeadForm() {
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Submission failed');
+      if (!res.ok) {
+        const msg = json.error || (res.status >= 500
+          ? 'The automation server returned an error. Try again in a moment.'
+          : 'Submission failed. Check your inputs and try again.');
+        throw new Error(msg);
+      }
       setResult(json);
-      setState('success');
+      setFormState('success');
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Something went wrong');
-      setState('error');
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        setErrorMsg('Could not reach the server. Check your internet connection.');
+      } else {
+        setErrorMsg(err instanceof Error ? err.message : 'Something went wrong.');
+      }
+      setFormState('error');
+    }
+  }
+
+  async function checkStatus() {
+    if (!result?.execution_id) return;
+    setCheckingStatus(true);
+    setExecutionStatus(null);
+    setExecutionError('');
+    try {
+      const res = await fetch(`/api/status/${result.execution_id}`);
+      const json: StatusResult = await res.json();
+      if (!res.ok) throw new Error((json as { error?: string }).error || 'Status check failed');
+      setExecutionStatus(json.status);
+      if (json.status === 'error') {
+        setExecutionError(json.errorMessage || 'The workflow failed with an unknown error.');
+      }
+    } catch (err) {
+      setExecutionError(err instanceof Error ? err.message : 'Could not fetch status.');
+      setExecutionStatus('error');
+    } finally {
+      setCheckingStatus(false);
     }
   }
 
@@ -129,30 +172,63 @@ export default function LeadForm() {
 
         <button
           type="submit"
-          disabled={state === 'loading'}
+          disabled={formState === 'loading'}
           className="w-full rounded-lg bg-gray-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {state === 'loading' ? 'Generating leads…' : 'Generate Icebreakers'}
+          {formState === 'loading' ? 'Generating leads…' : 'Generate Icebreakers'}
         </button>
       </form>
 
-      {state === 'success' && result && (
-        <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4">
-          <p className="text-sm font-medium text-green-800">{result.message}</p>
-          <a
-            href={result.sheets_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-block text-sm text-green-700 underline hover:text-green-900"
-          >
-            Open Google Sheet →
-          </a>
+      {formState === 'success' && result && (
+        <div className="mt-6 space-y-3">
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <p className="text-sm font-medium text-green-800">{result.message}</p>
+            <a
+              href={result.sheets_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block text-sm text-green-700 underline hover:text-green-900"
+            >
+              Open Google Sheet →
+            </a>
+          </div>
+
+          {result.execution_id && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">Check if the workflow completed successfully:</p>
+                <button
+                  onClick={checkStatus}
+                  disabled={checkingStatus}
+                  className="ml-3 rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {checkingStatus ? 'Checking…' : 'Check Status'}
+                </button>
+              </div>
+
+              {executionStatus === 'running' || executionStatus === 'waiting' ? (
+                <p className="mt-2 text-sm text-yellow-700">
+                  ⏳ Still running — try again in a few seconds.
+                </p>
+              ) : executionStatus === 'success' ? (
+                <p className="mt-2 text-sm text-green-700">
+                  ✓ Workflow completed — check your Google Sheet for new leads.
+                </p>
+              ) : executionStatus === 'error' ? (
+                <div className="mt-2 rounded border border-red-200 bg-red-50 p-3">
+                  <p className="text-xs font-semibold text-red-700 mb-1">Workflow error:</p>
+                  <p className="text-xs text-red-600 font-mono break-all">{executionError}</p>
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       )}
 
-      {state === 'error' && (
+      {formState === 'error' && (
         <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-700">{errorMsg}</p>
+          <p className="text-sm font-semibold text-red-700 mb-1">Submission failed</p>
+          <p className="text-sm text-red-600">{errorMsg}</p>
         </div>
       )}
     </div>
