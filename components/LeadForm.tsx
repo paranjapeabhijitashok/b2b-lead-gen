@@ -2,6 +2,18 @@
 
 import { useState } from 'react';
 
+const COUNTRIES = [
+  'india', 'united states', 'united kingdom', 'germany', 'france', 'canada',
+  'australia', 'singapore', 'united arab emirates', 'south africa', 'netherlands',
+  'italy', 'spain', 'brazil', 'mexico', 'indonesia', 'philippines', 'malaysia',
+  'nigeria', 'kenya', 'saudi arabia', 'israel', 'turkey', 'japan', 'china',
+  'south korea', 'hong kong', 'taiwan', 'new zealand', 'ireland', 'switzerland',
+  'sweden', 'norway', 'denmark', 'finland', 'poland', 'portugal', 'belgium',
+  'austria', 'czech republic', 'romania', 'hungary', 'ukraine', 'russia',
+  'pakistan', 'bangladesh', 'sri lanka', 'egypt', 'morocco', 'ghana',
+  'colombia', 'argentina', 'chile', 'peru', 'qatar', 'kuwait', 'bahrain', 'oman',
+];
+
 type FormState = 'idle' | 'loading' | 'success' | 'error';
 
 interface SubmitResult {
@@ -15,7 +27,7 @@ export default function LeadForm() {
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     e.preventDefault();
     setState('loading');
     setResult(null);
@@ -85,14 +97,15 @@ export default function LeadForm() {
           />
         </Field>
 
-        <Field label="Location" hint="City or country to target" required>
-          <input
-            name="location"
-            type="text"
-            required
-            placeholder="Mumbai, India"
-            className={inputClass}
-          />
+        <Field label="Target Country" required>
+          <select name="location" required className={inputClass}>
+            <option value="">Select a country…</option>
+            {COUNTRIES.map((c) => (
+              <option key={c} value={c}>
+                {c.replace(/\b\w/g, (l) => l.toUpperCase())}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Keywords" hint="Industry or niche keywords, comma-separated">
