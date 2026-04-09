@@ -1,262 +1,331 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
+import { useState } from 'react'
 
-const COUNTRIES = [
-  'india', 'united states', 'united kingdom', 'germany', 'france', 'canada',
-  'australia', 'singapore', 'united arab emirates', 'south africa', 'netherlands',
-  'italy', 'spain', 'brazil', 'mexico', 'indonesia', 'philippines', 'malaysia',
-  'nigeria', 'kenya', 'saudi arabia', 'israel', 'turkey', 'japan', 'china',
-  'south korea', 'hong kong', 'taiwan', 'new zealand', 'ireland', 'switzerland',
-  'sweden', 'norway', 'denmark', 'finland', 'poland', 'portugal', 'belgium',
-  'austria', 'czech republic', 'romania', 'hungary', 'ukraine', 'russia',
-  'pakistan', 'bangladesh', 'sri lanka', 'egypt', 'morocco', 'ghana',
-  'colombia', 'argentina', 'chile', 'peru', 'qatar', 'kuwait', 'bahrain', 'oman',
-];
+const MSA1_ABOUT =
+  'MSA1 Power Tools manufactures professional-grade power tools including drill machines, grinders, cutters, cleaning tools, cutting tools, and gardening tools. Built for reliability and performance, MSA1 tools are trusted by construction companies, fabrication workshops, agriculture sector, and government establishments across India.'
 
-type FormState = 'idle' | 'loading' | 'success' | 'error';
-type ExecutionStatus = 'running' | 'success' | 'error' | 'waiting' | null;
+const INDUSTRIES = [
+  { id: 'army', label: 'Army & Defense', icon: '🛡️' },
+  { id: 'agriculture', label: 'Agriculture', icon: '🌾' },
+  { id: 'construction', label: 'Construction & Infrastructure', icon: '🏗️' },
+  { id: 'workshops', label: 'Workshops & Manufacturing', icon: '⚙️' },
+  { id: 'govt', label: 'Government / PSU', icon: '🏛️' },
+  { id: 'fabrication', label: 'Fabrication & Engineering', icon: '🔧' },
+]
 
-interface SubmitResult {
-  status: string;
-  message: string;
-  sheets_url: string;
-  execution_id?: string;
-}
+const INDIAN_STATES = [
+  'Maharashtra', 'Gujarat', 'Karnataka', 'Tamil Nadu', 'Rajasthan',
+  'Uttar Pradesh', 'Delhi', 'Punjab', 'Haryana', 'Madhya Pradesh',
+  'West Bengal', 'Telangana', 'Andhra Pradesh', 'Kerala', 'Bihar',
+  'Odisha', 'Jharkhand', 'Chhattisgarh', 'Uttarakhand', 'Goa',
+  'Himachal Pradesh', 'Assam', 'Jammu & Kashmir',
+]
 
-interface StatusResult {
-  status: ExecutionStatus;
-  stoppedAt: string | null;
-  errorMessage: string | null;
+type FormState = 'idle' | 'loading' | 'success' | 'error'
+
+interface Result {
+  message: string
+  sheets_url: string
+  execution_id?: string
 }
 
 export default function LeadForm() {
-  const [formState, setFormState] = useState<FormState>('idle');
-  const [result, setResult] = useState<SubmitResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>(null);
-  const [executionError, setExecutionError] = useState('');
-  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [name, setName] = useState('Abhijit')
+  const [aboutProduct, setAboutProduct] = useState(MSA1_ABOUT)
+  const [productUrl, setProductUrl] = useState('https://msa1tools.com')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('Maharashtra')
+  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
+  const [formState, setFormState] = useState<FormState>('idle')
+  const [result, setResult] = useState<Result | null>(null)
+  const [errorMsg, setErrorMsg] = useState('')
+  const [statusMsg, setStatusMsg] = useState('')
 
-  async function handleSubmit(e: { preventDefault(): void; currentTarget: HTMLFormElement }) {
-    e.preventDefault();
-    setFormState('loading');
-    setResult(null);
-    setErrorMsg('');
-    setExecutionStatus(null);
-    setExecutionError('');
+  function toggleIndustry(label: string) {
+    setSelectedIndustries(prev =>
+      prev.includes(label) ? prev.filter(i => i !== label) : [...prev, label]
+    )
+  }
 
-    const form = e.currentTarget;
-    const data = {
-      'Your Name': (form.elements.namedItem('yourName') as HTMLInputElement).value,
-      'About your Product': (form.elements.namedItem('aboutProduct') as HTMLTextAreaElement).value,
-      'Designation': (form.elements.namedItem('designation') as HTMLInputElement).value,
-      'Location': (form.elements.namedItem('location') as HTMLSelectElement).value,
-      'Keywords': (form.elements.namedItem('keywords') as HTMLInputElement).value,
-      'Product URL': (form.elements.namedItem('productUrl') as HTMLInputElement).value,
-    };
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (selectedIndustries.length === 0) {
+      setErrorMsg('Please select at least one industry.')
+      return
+    }
+    setErrorMsg('')
+    setFormState('loading')
+    setResult(null)
 
     try {
       const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        const msg = json.error || (res.status >= 500
-          ? 'The automation server returned an error. Try again in a moment.'
-          : 'Submission failed. Check your inputs and try again.');
-        throw new Error(msg);
-      }
-      setResult(json);
-      setFormState('success');
+        body: JSON.stringify({ name, aboutProduct, productUrl, city, state, industries: selectedIndustries }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Submission failed')
+      setResult(data)
+      setFormState('success')
     } catch (err) {
-      if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        setErrorMsg('Could not reach the server. Check your internet connection.');
-      } else {
-        setErrorMsg(err instanceof Error ? err.message : 'Something went wrong.');
-      }
-      setFormState('error');
+      setErrorMsg(err instanceof Error ? err.message : 'Unknown error')
+      setFormState('error')
     }
   }
 
   async function checkStatus() {
-    if (!result?.execution_id) return;
-    setCheckingStatus(true);
-    setExecutionStatus(null);
-    setExecutionError('');
+    if (!result?.execution_id) return
+    setStatusMsg('Checking…')
     try {
-      const res = await fetch(`/api/status/${result.execution_id}`);
-      const json: StatusResult = await res.json();
-      if (!res.ok) throw new Error((json as { error?: string }).error || 'Status check failed');
-      setExecutionStatus(json.status);
-      if (json.status === 'error') {
-        setExecutionError(json.errorMessage || 'The workflow failed with an unknown error.');
-      }
-    } catch (err) {
-      setExecutionError(err instanceof Error ? err.message : 'Could not fetch status.');
-      setExecutionStatus('error');
-    } finally {
-      setCheckingStatus(false);
+      const res = await fetch(`/api/status/${result.execution_id}`)
+      const data = await res.json()
+      if (data.status === 'success') setStatusMsg('✅ Workflow completed successfully.')
+      else if (data.status === 'error') setStatusMsg(`❌ ${data.error || 'Workflow failed.'}`)
+      else if (data.status === 'running') setStatusMsg('⏳ Still running — check again in a moment.')
+      else setStatusMsg(`Status: ${data.status}`)
+    } catch {
+      setStatusMsg('Could not fetch status.')
     }
   }
 
+  const industryCount = selectedIndustries.length
+
   return (
-    <div className="w-full max-w-xl">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-2">B2B Lead Generator</h1>
-      <p className="text-sm text-gray-500 mb-8">
-        Fill in the details below. Personalised icebreakers will appear in your Google Sheet.
-      </p>
+    <div style={{ minHeight: '100vh', backgroundColor: '#0f1117', color: '#f1f5f9', fontFamily: 'system-ui, sans-serif' }}>
+      {/* Header */}
+      <div style={{ backgroundColor: '#1a1d27', borderBottom: '1px solid #2d3142' }}>
+        <div style={{ maxWidth: 680, margin: '0 auto', padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 8,
+              background: 'linear-gradient(135deg, #dc2626, #991b1b)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, fontWeight: 900, color: '#fbbf24', flexShrink: 0,
+            }}>M</div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>
+                MSA1 B2B Lead Generator
+              </h1>
+              <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
+                Google Maps · Maharashtra · Power Tools
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Field label="Your Name" required>
-          <input
-            name="yourName"
-            type="text"
-            required
-            placeholder="Jane Smith"
-            className={inputClass}
-          />
-        </Field>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '32px 24px' }}>
+        <form onSubmit={handleSubmit}>
 
-        <Field label="About your Product" required>
-          <textarea
-            name="aboutProduct"
-            required
-            rows={3}
-            placeholder="Describe what your product does and why it's valuable..."
-            className={inputClass}
-          />
-        </Field>
+          {/* YOUR DETAILS */}
+          <Section title="YOUR DETAILS">
+            <Field label="Your Name">
+              <Input value={name} onChange={e => setName(e.target.value)} required placeholder="Abhijit" />
+            </Field>
+            <Field label="About your Product">
+              <textarea
+                value={aboutProduct}
+                onChange={e => setAboutProduct(e.target.value)}
+                required
+                rows={4}
+                style={textareaStyle}
+              />
+            </Field>
+            <Field label="Product URL">
+              <Input value={productUrl} onChange={e => setProductUrl(e.target.value)} required placeholder="https://msa1tools.com" />
+            </Field>
+          </Section>
 
-        <Field label="Target Designation" hint="e.g. CEO, Head of Marketing" required>
-          <input
-            name="designation"
-            type="text"
-            required
-            placeholder="CEO"
-            className={inputClass}
-          />
-        </Field>
+          {/* LOCATION */}
+          <Section title="LOCATION">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <Field label="City *">
+                <Input
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  required
+                  placeholder="e.g. Pune, Nashik, Nagpur"
+                />
+              </Field>
+              <Field label="State">
+                <select
+                  value={state}
+                  onChange={e => setState(e.target.value)}
+                  style={selectStyle}
+                >
+                  {INDIAN_STATES.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </Section>
 
-        <Field label="Target Country" required>
-          <select name="location" required className={inputClass}>
-            <option value="">Select a country…</option>
-            {COUNTRIES.map((c) => (
-              <option key={c} value={c}>
-                {c.replace(/\b\w/g, (l) => l.toUpperCase())}
-              </option>
-            ))}
-          </select>
-        </Field>
+          {/* TARGET INDUSTRIES */}
+          <Section title="TARGET INDUSTRIES" subtitle="Select one or more — up to 20 leads each via Google Maps">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {INDUSTRIES.map(ind => {
+                const checked = selectedIndustries.includes(ind.label)
+                return (
+                  <button
+                    key={ind.id}
+                    type="button"
+                    onClick={() => toggleIndustry(ind.label)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
+                      border: checked ? '2px solid #dc2626' : '2px solid #2d3142',
+                      backgroundColor: checked ? '#1f1214' : '#1a1d27',
+                      color: checked ? '#f1f5f9' : '#94a3b8',
+                      textAlign: 'left', fontSize: 14, fontWeight: checked ? 600 : 400,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{
+                      width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                      border: checked ? '2px solid #dc2626' : '2px solid #475569',
+                      backgroundColor: checked ? '#dc2626' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, color: '#fff',
+                    }}>
+                      {checked ? '✓' : ''}
+                    </span>
+                    <span>{ind.icon} {ind.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {errorMsg && <p style={{ marginTop: 10, color: '#f87171', fontSize: 13 }}>{errorMsg}</p>}
+          </Section>
 
-        <Field label="Keywords" hint="Industry or niche keywords, comma-separated">
-          <input
-            name="keywords"
-            type="text"
-            placeholder="SaaS, outreach, sales automation"
-            className={inputClass}
-          />
-        </Field>
+          {/* SUBMIT */}
+          <button
+            type="submit"
+            disabled={formState === 'loading'}
+            style={{
+              width: '100%', padding: '14px', borderRadius: 8, border: 'none',
+              backgroundColor: formState === 'loading' ? '#7f1d1d' : '#dc2626',
+              color: '#fff', fontSize: 16, fontWeight: 700, cursor: formState === 'loading' ? 'not-allowed' : 'pointer',
+              marginTop: 8, transition: 'background-color 0.15s',
+            }}
+          >
+            {formState === 'loading'
+              ? `🔍 Searching ${industryCount} industr${industryCount === 1 ? 'y' : 'ies'} on Google Maps…`
+              : '🚀 Find Leads'}
+          </button>
+        </form>
 
-        <Field label="Product URL" required>
-          <input
-            name="productUrl"
-            type="url"
-            required
-            placeholder="https://yourproduct.com"
-            className={inputClass}
-          />
-        </Field>
-
-        <button
-          type="submit"
-          disabled={formState === 'loading'}
-          className="w-full rounded-lg bg-gray-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {formState === 'loading' ? 'Generating leads…' : 'Generate Icebreakers'}
-        </button>
-      </form>
-
-      {formState === 'success' && result && (
-        <div className="mt-6 space-y-3">
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-            <p className="text-sm font-medium text-green-800">{result.message}</p>
+        {/* SUCCESS */}
+        {formState === 'success' && result && (
+          <div style={{ marginTop: 24, padding: 20, borderRadius: 10, border: '1px solid #166534', backgroundColor: '#052e16' }}>
+            <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#4ade80', fontSize: 15 }}>
+              ✅ Processing {industryCount} industr{industryCount === 1 ? 'y' : 'ies'}
+            </p>
+            <p style={{ margin: '0 0 12px', color: '#86efac', fontSize: 13 }}>
+              Leads & personalised icebreakers will appear in your Google Sheet shortly.
+            </p>
             <a
               href={result.sheets_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-block text-sm text-green-700 underline hover:text-green-900"
+              style={{ color: '#4ade80', fontSize: 14, fontWeight: 600 }}
             >
               Open Google Sheet →
             </a>
-          </div>
 
-          {result.execution_id && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">Check if the workflow completed successfully:</p>
-                <button
-                  onClick={checkStatus}
-                  disabled={checkingStatus}
-                  className="ml-3 rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {checkingStatus ? 'Checking…' : 'Check Status'}
-                </button>
-              </div>
-
-              {executionStatus === 'running' || executionStatus === 'waiting' ? (
-                <p className="mt-2 text-sm text-yellow-700">
-                  ⏳ Still running — try again in a few seconds.
-                </p>
-              ) : executionStatus === 'success' ? (
-                <p className="mt-2 text-sm text-green-700">
-                  ✓ Workflow completed — check your Google Sheet for new leads.
-                </p>
-              ) : executionStatus === 'error' ? (
-                <div className="mt-2 rounded border border-red-200 bg-red-50 p-3">
-                  <p className="text-xs font-semibold text-red-700 mb-1">Workflow error:</p>
-                  <p className="text-xs text-red-600 font-mono break-all">{executionError}</p>
+            {result.execution_id && (
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #166534' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                  <span style={{ color: '#86efac', fontSize: 13 }}>Check workflow status:</span>
+                  <button
+                    onClick={checkStatus}
+                    style={{
+                      padding: '6px 16px', borderRadius: 6, border: '1px solid #166534',
+                      backgroundColor: '#14532d', color: '#4ade80', fontSize: 13,
+                      cursor: 'pointer', fontWeight: 600,
+                    }}
+                  >
+                    Check Status
+                  </button>
                 </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-      )}
+                {statusMsg && (
+                  <p style={{ marginTop: 10, fontSize: 13, color: statusMsg.startsWith('✅') ? '#4ade80' : statusMsg.startsWith('❌') ? '#f87171' : '#fbbf24' }}>
+                    {statusMsg}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-      {formState === 'error' && (
-        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm font-semibold text-red-700 mb-1">Submission failed</p>
-          <p className="text-sm text-red-600">{errorMsg}</p>
-        </div>
-      )}
+        {/* ERROR */}
+        {formState === 'error' && (
+          <div style={{ marginTop: 24, padding: 16, borderRadius: 10, border: '1px solid #7f1d1d', backgroundColor: '#1c0a0a' }}>
+            <p style={{ margin: 0, color: '#f87171', fontSize: 14, fontWeight: 600 }}>❌ Submission failed</p>
+            <p style={{ margin: '4px 0 0', color: '#fca5a5', fontSize: 13 }}>{errorMsg}</p>
+          </div>
+        )}
+      </div>
     </div>
-  );
+  )
 }
 
-const inputClass =
-  'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400';
+// ─── Sub-components ────────────────────────────────────────────────────────────
 
-function Field({
-  label,
-  hint,
-  required,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
+function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="mb-1 block text-sm font-medium text-gray-700">
-        {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
-        {hint && <span className="ml-1 font-normal text-gray-400">({hint})</span>}
-      </label>
+    <div style={{ marginBottom: 28, backgroundColor: '#1a1d27', borderRadius: 10, border: '1px solid #2d3142', overflow: 'hidden' }}>
+      <div style={{ padding: '12px 18px', borderBottom: '1px solid #2d3142', backgroundColor: '#161820' }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#94a3b8' }}>{title}</p>
+        {subtitle && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#64748b' }}>{subtitle}</p>}
+      </div>
+      <div style={{ padding: 18 }}>{children}</div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 6, fontWeight: 500 }}>{label}</label>
       {children}
     </div>
-  );
+  )
+}
+
+function Input({ value, onChange, required, placeholder }: {
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  required?: boolean
+  placeholder?: string
+}) {
+  return (
+    <input
+      value={value}
+      onChange={onChange}
+      required={required}
+      placeholder={placeholder}
+      style={inputStyle}
+    />
+  )
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 12px', borderRadius: 6,
+  border: '1px solid #2d3142', backgroundColor: '#0f1117',
+  color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+}
+
+const textareaStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 12px', borderRadius: 6,
+  border: '1px solid #2d3142', backgroundColor: '#0f1117',
+  color: '#f1f5f9', fontSize: 14, outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+  fontFamily: 'system-ui, sans-serif',
+}
+
+const selectStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 12px', borderRadius: 6,
+  border: '1px solid #2d3142', backgroundColor: '#0f1117',
+  color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box',
 }
