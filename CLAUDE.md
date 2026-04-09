@@ -8,6 +8,7 @@ Convert the **Apr2026-Deep Multiline Icebreaker** n8n workflow into a deployed N
 - [x] Phase 3 — Test: Full round-trip verified locally on port 3000
 - [x] Phase 4 — Push to GitHub: https://github.com/paranjapeabhijitashok/b2b-lead-gen
 - [x] Phase 5 — Deploy to Vercel: https://b2b-lead-gen-xi.vercel.app
+- [x] Phase 6 — Google Maps + Status Polling: Replaced Apify with Google Maps Places API; added execution status check button; improved error messages
 
 ---
 
@@ -81,9 +82,21 @@ Convert the **Apr2026-Deep Multiline Icebreaker** n8n workflow into a deployed N
 ```bash
 # .env.local (never commit)
 N8N_WEBHOOK_URL=https://abhijitfreelancerparanjape.n8n-wsk.com/webhook/deep-multiline-icebreaker
+GOOGLE_MAPS_API_KEY=<your key>        # Places API (New) — used in n8n workflow node
+N8N_BASE_URL=https://abhijitfreelancerparanjape.n8n-wsk.com
+N8N_API_KEY=<your n8n API key>        # Settings → API in n8n
 ```
+
+All 4 variables must also be set in Vercel dashboard → Project → Settings → Environment Variables.
 
 **n8n workflow:** `Apr2026-Deep Multiline Icebreaker` (ID: `F2jMLF0JA4l7aFVt`)
 **Output sheet:** https://docs.google.com/spreadsheets/d/1X9Y1VR-aqzoEV56jlCsPVMlOt5zCl_MUAvs1TwgnZic/edit
 
-Add the same variable in the Vercel dashboard under Project → Settings → Environment Variables.
+## Lead Source: Google Maps (Phase 6+)
+
+Leads are now sourced from **Google Maps Places API** (Text Search).
+- Finds **businesses** (not individuals) matching Keywords + Location
+- Returns: company name, website, address, phone number
+- `Designation` from the form is used in the icebreaker prompt (e.g. "write an icebreaker targeting the CEO of this company")
+- Email column in Google Sheet will be blank (Google Maps does not return emails)
+- Workflow adds 2 new nodes: `Split Places` (splits the places array) and `Map to Lead Fields` (maps to expected field names)
