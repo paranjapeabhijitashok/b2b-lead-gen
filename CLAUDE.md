@@ -90,7 +90,7 @@ N8N_API_KEY=<your n8n API key>        # Settings → API in n8n
 All 4 variables must also be set in Vercel dashboard → Project → Settings → Environment Variables.
 
 **n8n workflow:** `Apr2026-Deep Multiline Icebreaker` (ID: `F2jMLF0JA4l7aFVt`)
-**Output sheet:** https://docs.google.com/spreadsheets/d/1X9Y1VR-aqzoEV56jlCsPVMlOt5zCl_MUAvs1TwgnZic/edit
+**Output sheet:** https://docs.google.com/spreadsheets/d/1gOX9YcT7TWzWSJIYO0Jbi_og87GFEWuFVtETHoWVLbc/edit?gid=0 (LeadGeneration → Leads tab)
 
 ## Lead Source: Google Maps (Phase 6+)
 
