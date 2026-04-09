@@ -7,7 +7,7 @@ Convert the **Apr2026-Deep Multiline Icebreaker** n8n workflow into a deployed N
 - [x] Phase 2 — Build: Next.js app scaffolded, API route + form + webhook client complete
 - [x] Phase 3 — Test: Full round-trip verified locally on port 3000
 - [x] Phase 4 — Push to GitHub: https://github.com/paranjapeabhijitashok/b2b-lead-gen
-- [ ] Phase 5 — Deploy to Vercel
+- [x] Phase 5 — Deploy to Vercel: https://b2b-lead-gen-xi.vercel.app
 
 ---
 
