@@ -218,31 +218,30 @@ export default function LeadForm() {
 
         {/* SUCCESS */}
         {formState === 'success' && result && (
-          <div style={{ marginTop: 24, padding: 20, borderRadius: 10, border: '1px solid #166534', backgroundColor: '#052e16' }}>
-            <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#4ade80', fontSize: 15 }}>
-              ✅ Processing {industryCount} industr{industryCount === 1 ? 'y' : 'ies'}
-            </p>
-            <p style={{ margin: '0 0 12px', color: '#86efac', fontSize: 13 }}>
-              Leads & personalised icebreakers will appear in your Google Sheet shortly.
-            </p>
-            <a
-              href={result.sheets_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: '#4ade80', fontSize: 14, fontWeight: 600 }}
-            >
-              Open Google Sheet →
-            </a>
+          <div style={{ marginTop: 24, borderRadius: 10, border: '1px solid #166534', backgroundColor: '#052e16', overflow: 'hidden' }}>
+            <div style={{ padding: 20 }}>
+              <p style={{ margin: '0 0 10px', fontWeight: 600, color: '#4ade80', fontSize: 14 }}>
+                {result.message}
+              </p>
+              <a
+                href={result.sheets_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#4ade80', fontSize: 14, fontWeight: 600 }}
+              >
+                Open Google Sheet →
+              </a>
+            </div>
 
             {result.execution_id && (
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #166534' }}>
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #166534', backgroundColor: '#041a0e' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                  <span style={{ color: '#86efac', fontSize: 13 }}>Check workflow status:</span>
+                  <span style={{ color: '#86efac', fontSize: 13 }}>Check if the workflow completed successfully:</span>
                   <button
                     onClick={checkStatus}
                     style={{
-                      padding: '6px 16px', borderRadius: 6, border: '1px solid #166534',
-                      backgroundColor: '#14532d', color: '#4ade80', fontSize: 13,
+                      padding: '6px 16px', borderRadius: 6, border: 'none',
+                      backgroundColor: '#1f2937', color: '#f1f5f9', fontSize: 13,
                       cursor: 'pointer', fontWeight: 600,
                     }}
                   >
@@ -250,9 +249,18 @@ export default function LeadForm() {
                   </button>
                 </div>
                 {statusMsg && (
-                  <p style={{ marginTop: 10, fontSize: 13, color: statusMsg.startsWith('✅') ? '#4ade80' : statusMsg.startsWith('❌') ? '#f87171' : '#fbbf24' }}>
-                    {statusMsg}
-                  </p>
+                  <div style={{
+                    marginTop: 12, padding: '10px 14px', borderRadius: 6,
+                    border: `1px solid ${statusMsg.startsWith('✅') ? '#166534' : statusMsg.startsWith('❌') ? '#7f1d1d' : '#78350f'}`,
+                    backgroundColor: statusMsg.startsWith('✅') ? '#052e16' : statusMsg.startsWith('❌') ? '#1c0a0a' : '#1c1008',
+                  }}>
+                    {statusMsg.startsWith('❌') && (
+                      <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#f87171', fontSize: 13 }}>Workflow error:</p>
+                    )}
+                    <p style={{ margin: 0, fontSize: 13, fontFamily: 'monospace', color: statusMsg.startsWith('✅') ? '#4ade80' : statusMsg.startsWith('❌') ? '#fca5a5' : '#fbbf24' }}>
+                      {statusMsg.replace(/^[✅❌⏳]\s*/, '')}
+                    </p>
+                  </div>
                 )}
               </div>
             )}
